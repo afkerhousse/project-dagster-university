@@ -1,3 +1,4 @@
+import base64
 import dagster as dg
 from dagster_duckdb import DuckDBResource
 
@@ -12,13 +13,10 @@ class AdhocRequestConfig(dg.Config):
     end_date: str
 
 @dg.asset(
-    deps=["taxi_zones", "taxi_trips"]
+    deps=["taxi_zones", "taxi_trips"],
+    description="The response to an request made in the `requests` directory. See `requests/README.md` for more information.",
 )
-def adhoc_request(config: AdhocRequestConfig, database: DuckDBResource) -> None:
-    """
-      The response to an request made in the `requests` directory.
-      See `requests/README.md` for more information.
-    """
+def adhoc_request(config: AdhocRequestConfig, database: DuckDBResource) -> dg.MaterializeResult:
 
     # strip the file extension from the filename, and use it as the output filename
     file_path = constants.REQUEST_DESTINATION_TEMPLATE_FILE_PATH.format(config.filename.split('.')[0])
@@ -70,3 +68,17 @@ def adhoc_request(config: AdhocRequestConfig, database: DuckDBResource) -> None:
     
     plt.savefig(file_path)
     plt.close(fig)
+
+    with open(file_path, 'rb') as file:
+      image_data = file.read()
+
+    base64_data = base64.b64encode(image_data).decode('utf-8')
+    md_content = f"![Image](data:image/jpeg;base64,{base64_data})"
+
+    return dg.MaterializeResult(
+        metadata={
+            'preview': dg.MetadataValue.md(md_content)
+        }
+    )
+
+  
